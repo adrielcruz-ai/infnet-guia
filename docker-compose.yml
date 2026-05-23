@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  # Seu aplicativo Node.js personalizado
+  meu-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: adrielguedesinfnet/meu-app-node:v1
+    container_name: meu-app-node-container
+    ports:
+      - "8080:3000"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - meu-redis
+
+  # Redis roteiro
+  meu-redis:
+    image: redis:7-alpine
+    container_name: meu-redis-container
+    ports:
+      - "6379:6379"

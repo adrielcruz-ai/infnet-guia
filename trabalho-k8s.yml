@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meu-app-deployment
+  labels:
+    app: meu-app
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: meu-app
+  template:
+    metadata:
+      labels:
+        app: meu-app
+    spec:
+      containers:
+      - name: meu-app-container
+        image: adrielguedesinfnet/meu-app-node:v1
+        ports:
+        - containerPort: 3000
+        # ---------------------------------------------------
+        # Liveness Probe
+        # ---------------------------------------------------
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meu-app-service
+spec:
+  type: NodePort
+  selector:
+    app: meu-app
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 30000
+---
+# ---------------------------------------------------
+# Redis
+# ---------------------------------------------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: meu-redis-pod
+  labels:
+    component: database
+spec:
+  containers:
+  - name: redis
+    image: redis:7-alpine
+    ports:
+    - containerPort: 6379
+---
+# ---------------------------------------------------
+# ClusterIP para Redis
+# ---------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  type: ClusterIP
+  selector:
+    component: database
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+---      
+---
+# ---------------------------------------------------
+# 4: Criação do PVC com tamanho de 2Gi
+# ---------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: meu-pvc-trabalho
+spec:
+  accessModes:
+    - ReadWriteOnce # Permite que o disco seja lido/gravado por um nó por vez
+  resources:
+    requests:
+      storage: 2Gi   # Tamanho solicitado pelo professor
+---
+# ---------------------------------------------------
+# PVC
+# ---------------------------------------------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-escritor-pvc
+spec:
+  volumes:
+    - name: meu-volume-armazenamento
+      persistentVolumeClaim:
+        claimName: meu-pvc-trabalho
+  containers:
+  - name: escritor
+    image: alpine:latest
+    # Escreve data atual no PVC
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        while true; do
+          echo "Registro gerado em: $(date)" >> /mnt/dados/relatorio.txt;
+          sleep 5;
+        done
+    volumeMounts:
+      - name: meu-volume-armazenamento
+        mountPath: /mnt/dados
